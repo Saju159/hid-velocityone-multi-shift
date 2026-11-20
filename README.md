@@ -6,6 +6,10 @@ Userspace HID driver for the [Turtle Beach VelocityOne Multi-Shift](https://eu.t
 
 This project provides a Linux userspace driver for the Turtle Beach VelocityOne Multi-Shift controller. It maps the raw HID reports to a virtual gamepad device using `uinput`, making it compatible with games and simulators.
 
+### Changes on the fork
+- When H-pattern is enabled, handbrake button is now a separate programmable button. Before it was only used for the analog mode switching.
+- When you press both the handbrak and the high/low button it is registered as a 3rd button.
+
 ### Features
 - **Full Input Mapping**: Supports all 7 gears + Reverse, High/Low range button, Sequential shift (Up/Down), and Handbrake (Analog axis).
 - **Automatic Mode Detection**: Detects and switches behavior based on the physical controller mode (H-Pattern, Sequential, Handbrake).
@@ -51,10 +55,3 @@ sudo python hid_velocityone_multi_shift.py
 
 This project is licensed under the **GPL-2.0-or-later** license. This license was chosen specifically to allow this code to be used as a reference or directly ported for a future upstream Linux kernel driver implementation.
 
-## Affiliate links
-
-Consider using this affiliate links to sponsor the project.
-
-- [amazon.it](https://amzn.to/4rjgJza)
-- [amazon.de](https://amzn.to/4og6XLi)
-- [amazon.co.uk](https://amzn.to/4rr3gWi)
