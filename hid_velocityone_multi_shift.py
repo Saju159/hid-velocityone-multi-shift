@@ -7,6 +7,8 @@ from evdev import AbsInfo, UInput, ecodes
 
 import hid
 
+import time
+
 # Modalità controller
 MODE_H_PATTERN = 0
 MODE_SEQUENTIAL = 1
@@ -17,6 +19,8 @@ MODE_NAMES = {
     MODE_SEQUENTIAL: "Sequential",
     MODE_HANDBRAKE: "Handbrake"
 }
+
+
 
 def main():
     # Argument parsing
@@ -45,6 +49,8 @@ def main():
             ecodes.BTN_BASE3,       # Shift UP
             ecodes.BTN_BASE4,       # Shift DOWN
             ecodes.BTN_BASE5,       # High/Low
+            ecodes.BTN_BASE6,       # handbrake
+            ecodes.BTN_DEAD,       # combination
         ],
         ecodes.EV_ABS: [
             (ecodes.ABS_Y, AbsInfo(value=0, min=0, max=65535, fuzz=0, flat=0, resolution=0)),  # Handbrake
@@ -67,25 +73,96 @@ def main():
     current_mode: None | Literal[0, 1, 2]  = None  # Initial default mode
 
     try:
+        handbrakebut=False
+        handbrakebut2=False
+        combibut=False
+        highlowbut=False
+        highlowbut2=False
+        time1=0
+        time2=0
         while True:
+            
             data = device.read(64)
 
             if not data:
                 continue
+                
 
             # Ignore invalid packets
             if len(data) < 5:
                 continue
 
+            if len(data)>10:
+                #print(data)
+                handbrake=data[18]
+
+                #print(handbrake)
+
+                if handbrake==4 and not highlowbut:
+                    time1=time.time()
+                    time2=time.time()
+
+                if highlowbut and handbrake!=5:
+                    highlowbut=False
+                    highlowbut2=False
+                    ui.write(ecodes.EV_KEY, ecodes.BTN_BASE5, 0)
+                    ui.syn()
+                    logger.debug("HIGH/LOW RELEASED")
+
+                if handbrakebut and handbrake!=6:
+                    handbrakebut=False
+                    handbrakebut2=False
+                    ui.write(ecodes.EV_KEY, ecodes.BTN_BASE5, 0)
+                    ui.syn()
+                    logger.debug("Handbrake RELEASED")
+
+                if handbrake==5:
+                    highlowbut2=True
+                    #print(time.time()-time2)
+
+                if handbrake==6:
+                    handbrakebut2=True
+
+                if time.time()-time2>0.1 and not handbrake==6 and highlowbut2 and not highlowbut:
+                    highlowbut=True
+                    ui.write(ecodes.EV_KEY, ecodes.BTN_BASE5, 1)
+                    ui.syn()
+                    logger.debug("HIGH/LOW PRESSED")
+
+                if time.time()-time1>0.1 and not handbrake==5 and handbrakebut2 and not handbrakebut:
+                    handbrakebut=True
+                    ui.write(ecodes.EV_KEY, ecodes.BTN_BASE6, 1)
+                    ui.syn()
+                    logger.debug("Handbrake PRESSED")
+
+                if combibut and handbrake!=7:
+                    combibut=False
+                    ui.write(ecodes.EV_KEY, ecodes.BTN_DEAD, 0)
+                    ui.syn()
+                    logger.debug("Combibut RELEASED")
+
+                if handbrake==7 and not combibut:
+                    combibut=True
+                    ui.write(ecodes.EV_KEY, ecodes.BTN_DEAD, 1)
+                    ui.syn()
+                    logger.debug("Combibut PRESSED")
+
+
             # Report ID 36 (64 bytes): telemetry with mode info
             if data[0] == 36 and len(data) == 64:
                 # Detect mode from bytes 18 and 63 combination
                 new_mode = None
+
+                #if not data[63] and data[18] != 4:
+                    #logger.debug("test")
                 if data[18] == 4 and data[63] == 0:
                     new_mode = MODE_H_PATTERN
                 elif data[18] == 0 and data[63] == 1:
                     new_mode = MODE_SEQUENTIAL
                 elif data[18] == 8 and data[63] == 2:
+                    new_mode = MODE_HANDBRAKE
+
+                elif data[18] == 8 and data[4] == 2:
                     new_mode = MODE_HANDBRAKE
 
                 if new_mode is not None and new_mode != current_mode:
@@ -126,10 +203,10 @@ def main():
             # Handle buttons (Byte 2)
             button_state = data[2]
             if button_state != last_button_state:
+                
                 button_map = [
                     (0x01, ecodes.BTN_BASE4, "Shift UP"),
                     (0x02, ecodes.BTN_BASE3, "Shift DOWN"),
-                    (0x04, ecodes.BTN_BASE5, "High/Low"),
                 ]
 
                 for mask, btn, name in button_map:
@@ -160,5 +237,5 @@ def main():
         device.close()
         logger.debug("Device closed")
 
-if __name__ == "__main__":
-    main()
+#if __name__ == "__main__":
+main()
