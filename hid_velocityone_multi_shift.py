@@ -62,15 +62,22 @@ def main():
     logger.debug("Virtual gamepad device created!")
     logger.debug("Name: Turtle Beach VelocityOne Multi-Shift")
 
-    device = hid.device()
-    device.open(0x10f5, 0x7096)
+    try:
+        device = hid.device()
+        device.open(0x10f5, 0x7096)
 
-    logger.debug("Driver running... (press Ctrl+C to exit)")
+        logger.debug("Device found. Driver running... (press Ctrl+C to exit)")
 
-    last_gear_state: int = 0
-    last_button_state: int = 0
-    last_handbrake: int = 0
-    current_mode: None | Literal[0, 1, 2]  = None  # Initial default mode
+        last_gear_state: int = 0
+        last_button_state: int = 0
+        last_handbrake: int = 0
+        current_mode: None | Literal[0, 1, 2]  = None  # Initial default mode
+
+    except OSError:
+        logger.debug("ERROR! No shifter detected. Trying again in 5 seconds...")
+        time.sleep(5)
+        main()
+
 
     try:
         handbrakebut=False
@@ -114,7 +121,7 @@ def main():
                 if handbrakebut and buttonstat==4:
                     handbrakebut=False
                     handbrakebut2=False
-                    ui.write(ecodes.EV_KEY, ecodes.BTN_BASE5, 0)
+                    ui.write(ecodes.EV_KEY, ecodes.BTN_BASE6, 0)
                     ui.syn()
                     logger.debug("Handbrake RELEASED")
 
@@ -241,6 +248,12 @@ def main():
 
     except KeyboardInterrupt:
         logger.debug("Driver terminated by user")
+
+    except OSError:
+        logger.debug("ERROR! No shifter detected. Trying again in 5 seconds...")
+        time.sleep(5)
+        main()
+
     finally:
         ui.close()
         device.close()
